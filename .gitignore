@@ -1,0 +1,41 @@
+# 忽略文件
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+logs/
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+
+# 测试文件
+test/
+tests/
+
+# 用户配置（保留示例）
+config/user/
+!config/user/.gitkeep
+
+# 备份文件
+*.backup
+*.bak
+
+# 下载的软件包（自动下载）
+packages/
+downloads/
+
+# 本地开发环境
+.env
+.env.local
