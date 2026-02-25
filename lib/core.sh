@@ -8,9 +8,9 @@ set -e
 # 常量定义
 # ============================================
 
-# 版本号
-readonly PIBOOT_VERSION="1.0.0"
-readonly PIBOOT_RELEASE_DATE="2025-02-25"
+# 版本号（如果没定义则使用默认值）
+PIBOOT_VERSION="${PIBOOT_VERSION:-1.0.0}"
+PIBOOT_RELEASE_DATE="${PIBOOT_RELEASE_DATE:-2025-02-25}"
 
 # 颜色定义
 readonly COLOR_RED='\033[0;31m'
