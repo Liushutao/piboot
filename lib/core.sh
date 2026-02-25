@@ -13,27 +13,27 @@ PIBOOT_VERSION="${PIBOOT_VERSION:-1.0.0}"
 PIBOOT_RELEASE_DATE="${PIBOOT_RELEASE_DATE:-2025-02-25}"
 
 # 颜色定义
-readonly COLOR_RED='\033[0;31m'
-readonly COLOR_GREEN='\033[0;32m'
-readonly COLOR_YELLOW='\033[1;33m'
-readonly COLOR_BLUE='\033[0;34m'
-readonly COLOR_PURPLE='\033[0;35m'
-readonly COLOR_CYAN='\033[0;36m'
-readonly COLOR_NC='\033[0m' # No Color
+COLOR_RED='\033[0;31m'
+COLOR_GREEN='\033[0;32m'
+COLOR_YELLOW='\033[1;33m'
+COLOR_BLUE='\033[0;34m'
+COLOR_PURPLE='\033[0;35m'
+COLOR_CYAN='\033[0;36m'
+COLOR_NC='\033[0m' # No Color
 
 # 日志级别
-readonly LOG_LEVEL_DEBUG=0
-readonly LOG_LEVEL_INFO=1
-readonly LOG_LEVEL_WARN=2
-readonly LOG_LEVEL_ERROR=3
-readonly LOG_LEVEL=${LOG_LEVEL:-$LOG_LEVEL_INFO}
+LOG_LEVEL_DEBUG=0
+LOG_LEVEL_INFO=1
+LOG_LEVEL_WARN=2
+LOG_LEVEL_ERROR=3
+LOG_LEVEL=${LOG_LEVEL:-$LOG_LEVEL_INFO}
 
 # 路径定义
-readonly PIBOOT_DIR="${HOME}/.piboot"
-readonly PIBOOT_CONFIG_DIR="${PIBOOT_DIR}/config"
-readonly PIBOOT_LOG_DIR="${PIBOOT_DIR}/logs"
-readonly PIBOOT_BACKUP_DIR="${PIBOOT_DIR}/backups"
-readonly PIBOOT_MODULES_DIR="${PIBOOT_DIR}/modules"
+PIBOOT_DIR="${HOME}/.piboot"
+PIBOOT_CONFIG_DIR="${PIBOOT_DIR}/config"
+PIBOOT_LOG_DIR="${PIBOOT_DIR}/logs"
+PIBOOT_BACKUP_DIR="${PIBOOT_DIR}/backups"
+PIBOOT_MODULES_DIR="${PIBOOT_DIR}/modules"
 
 # ============================================
 # 日志函数
