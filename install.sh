@@ -27,11 +27,12 @@ main() {
     
     # 检测硬件
     local hw_type
-    hw_type=$(check_raspberry_pi)
+    hw_type=$(check_raspberry_pi || echo "unknown")
     
     if [[ "$hw_type" == "unknown" ]]; then
-        log_warn "未检测到 Raspberry Pi，继续执行可能导致问题"
-        if ! ask_yes_no "是否继续"; then
+        log_warn "未检测到 Raspberry Pi"
+        log_info "当前系统: $(get_os_info)"
+        if ! ask_yes_no "是否继续安装（部分功能可能不可用）"; then
             exit 0
         fi
     fi
