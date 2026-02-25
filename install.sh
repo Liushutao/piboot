@@ -25,21 +25,23 @@ main() {
     # 检查 Root 权限
     check_root || exit 1
     
-    # 检测硬件
+    # 检测硬件（不强制退出）
     local hw_type
     hw_type=$(check_raspberry_pi || echo "unknown")
     
     if [[ "$hw_type" == "unknown" ]]; then
         log_warn "未检测到 Raspberry Pi"
         log_info "当前系统: $(get_os_info)"
-        if ! ask_yes_no "是否继续安装（部分功能可能不可用）"; then
+        read -p "是否继续安装? [Y/n]: " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ && ! -z $REPLY ]]; then
             exit 0
         fi
     fi
     
     # 显示硬件信息
     show_section "硬件信息"
-    get_hardware_info | sed 's/^/  /'
+    get_hardware_info 2>/dev/null | sed 's/^/  /' || echo "  无法获取硬件信息"
     echo ""
     
     # 检测操作系统
@@ -59,8 +61,9 @@ main() {
     # 安装依赖（如果需要）
     if ! cmd_exists whiptail; then
         log_info "安装必要依赖..."
-        install_package whiptail || install_package dialog || {
-            log_warn "无法安装 TUI 工具，将使用 CLI 模式"
+        apt-get update -qq
+        apt-get install -y -qq whiptail 2>/dev/null || {
+            log_warn "无法安装 whiptail，将使用 CLI 模式"
             USE_TUI=false
         }
     fi
@@ -120,52 +123,54 @@ run_quick_setup() {
     echo "  5. 安装 Home Assistant（可选）"
     echo ""
     
-    if ! ask_yes_no "开始快速配置"; then
+    read -p "开始快速配置? [Y/n]: " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ && ! -z $REPLY ]]; then
         return 0
     fi
     
-    # 执行配置
+    # 加载系统配置模块
+    source "${SCRIPT_DIR}/modules/00_system.sh"
+    
+    # 选择镜像源
+    local mirror
+    mirror=$(show_mirror_menu)
+    
+    # 步骤1-2: 更换镜像源并更新
     local total_steps=5
     local current=0
     
-    # 步骤1: 更新系统
-    ((current++))
-    show_progress_bar "$current" "$total_steps" 40 "更新系统"
-    log_info "[$current/$total_steps] 更新系统软件包..."
-    apt-get update -qq && apt-get upgrade -y -qq || log_warn "系统更新部分失败"
-    log_success "系统更新完成"
-    sleep 0.5
-    
-    # 步骤2: 更换镜像源
     ((current++))
     show_progress_bar "$current" "$total_steps" 40 "更换镜像源"
-    log_info "[$current/$total_steps] 更换镜像源..."
-    # TODO: 调用镜像源更换脚本
-    log_success "镜像源更换完成"
+    change_mirror "$mirror" || log_warn "镜像源更换失败，使用默认源"
+    sleep 0.5
+    
+    ((current++))
+    show_progress_bar "$current" "$total_steps" 40 "更新系统"
+    update_package_list && upgrade_packages || log_warn "系统更新部分失败"
     sleep 0.5
     
     # 步骤3: 配置中文环境
     ((current++))
     show_progress_bar "$current" "$total_steps" 40 "配置中文"
-    log_info "[$current/$total_steps] 配置中文环境..."
-    # TODO: 调用中文环境配置脚本
-    log_success "中文环境配置完成"
+    setup_chinese_locale || log_warn "中文环境配置失败"
     sleep 0.5
     
     # 步骤4: 安装 Docker
     ((current++))
     show_progress_bar "$current" "$total_steps" 40 "安装Docker"
-    log_info "[$current/$total_steps] 安装 Docker..."
-    # TODO: 调用 Docker 安装脚本
-    log_success "Docker 安装完成"
+    source "${SCRIPT_DIR}/modules/01_docker.sh"
+    module_install || log_warn "Docker 安装失败"
     sleep 0.5
     
-    # 步骤5: 询问是否安装 Home Assistant
+    # 步骤5: 安装 Home Assistant（可选）
     ((current++))
     show_progress_bar "$current" "$total_steps" 40 "完成配置"
-    if ask_yes_no "是否安装 Home Assistant"; then
-        log_info "安装 Home Assistant..."
-        # TODO: 调用 HA 安装脚本
+    
+    read -p "是否安装 Home Assistant? [y/N]: " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        install_homeassistant
     fi
     
     echo ""
@@ -177,7 +182,7 @@ run_quick_setup() {
     echo "  • 访问 http://$(get_ip_address):8123 打开 Home Assistant"
     echo ""
     
-    read -r -p "按回车键返回主菜单..."
+    read -p "按回车键返回主菜单..."
 }
 
 # 自定义配置
@@ -193,14 +198,13 @@ run_custom_setup() {
     mirror=$(show_mirror_menu)
     log_info "选择的镜像源: $mirror"
     
-    # 选择服务
-    local services
-    services=$(show_service_menu)
-    log_info "选择的服务: $services"
+    # 加载系统配置模块
+    source "${SCRIPT_DIR}/modules/00_system.sh"
     
-    # TODO: 执行安装
+    # 执行自定义配置
+    module_custom_setup
     
-    read -r -p "按回车键返回主菜单..."
+    read -p "按回车键返回主菜单..."
 }
 
 # 安装特定服务
@@ -218,12 +222,89 @@ install_specific_services() {
     
     log_info "准备安装: $services"
     
-    if ask_yes_no "确认安装"; then
-        # TODO: 调用各服务的安装脚本
-        log_success "安装完成"
+    read -p "确认安装? [Y/n]: " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ && ! -z $REPLY ]]; then
+        return 0
     fi
     
-    read -r -p "按回车键返回主菜单..."
+    # 解析选择的服务并安装
+    for service in $services; do
+        case $service in
+            docker)
+                source "${SCRIPT_DIR}/modules/01_docker.sh"
+                module_install
+                ;;
+            homeassistant)
+                install_homeassistant
+                ;;
+            plex)
+                install_plex
+                ;;
+            *)
+                log_warn "服务 $service 暂不支持"
+                ;;
+        esac
+    done
+    
+    log_success "安装完成"
+    read -p "按回车键返回主菜单..."
+}
+
+# 安装 Home Assistant
+install_homeassistant() {
+    log_info "安装 Home Assistant..."
+    
+    # 检查 Docker
+    if ! command -v docker &> /dev/null; then
+        log_error "Docker 未安装，请先安装 Docker"
+        return 1
+    fi
+    
+    # 创建配置目录
+    local ha_dir="${HOME}/homeassistant"
+    ensure_dir "$ha_dir"
+    ensure_dir "$ha_dir/config"
+    
+    # 复制 compose 文件
+    cp "${SCRIPT_DIR}/config/docker-compose/homeassistant.yml" "$ha_dir/docker-compose.yml"
+    
+    # 启动
+    cd "$ha_dir"
+    docker compose up -d
+    
+    log_success "Home Assistant 安装完成"
+    log_info "访问地址: http://$(get_ip_address):8123"
+    log_info "配置文件位置: $ha_dir/config"
+}
+
+# 安装 Plex
+install_plex() {
+    log_info "安装 Plex Media Server..."
+    
+    # 检查 Docker
+    if ! command -v docker &> /dev/null; then
+        log_error "Docker 未安装，请先安装 Docker"
+        return 1
+    fi
+    
+    # 创建配置目录
+    local plex_dir="${HOME}/plex"
+    ensure_dir "$plex_dir"
+    ensure_dir "$plex_dir/config"
+    ensure_dir "$plex_dir/media"
+    ensure_dir "$plex_dir/transcode"
+    
+    # 复制 compose 文件
+    cp "${SCRIPT_DIR}/config/docker-compose/plex.yml" "$plex_dir/docker-compose.yml"
+    
+    # 启动
+    cd "$plex_dir"
+    docker compose up -d
+    
+    log_success "Plex 安装完成"
+    log_info "访问地址: http://$(get_ip_address):32400"
+    log_info "媒体文件位置: $plex_dir/media"
 }
 
 # 系统优化
@@ -237,21 +318,27 @@ system_optimize() {
     echo "  [2] 优化GPU内存分配"
     echo "  [3] 配置SSH密钥登录"
     echo "  [4] 禁用蓝牙（节省资源）"
-    echo "  [5] 超频设置（谨慎使用）"
+    echo "  [5] 优化 swappiness"
     echo ""
     
     read -r -p "请选择优化项目 [1-5]: " opt
     
+    # 加载系统配置模块
+    source "${SCRIPT_DIR}/modules/00_system.sh"
+    
     case $opt in
-        1) log_info "扩展文件系统..." ;;
-        2) log_info "优化GPU内存..." ;;
-        3) log_info "配置SSH密钥..." ;;
-        4) log_info "禁用蓝牙..." ;;
-        5) log_info "超频设置..." ;;
+        1) expand_filesystem ;;
+        2) 
+            read -r -p "输入GPU内存大小(MB) [128]: " gpu_mem
+            optimize_gpu_mem "${gpu_mem:-128}"
+            ;;
+        3) setup_ssh_key ;;
+        4) disable_bluetooth ;;
+        5) optimize_swappiness 10 ;;
         *) log_warn "无效选项" ;;
     esac
     
-    read -r -p "按回车键返回主菜单..."
+    read -p "按回车键返回主菜单..."
 }
 
 # 卸载服务
@@ -260,10 +347,35 @@ uninstall_services() {
     show_section "卸载服务"
     
     log_warn "此功能将删除已安装的服务"
+    echo ""
+    echo "  [1] 卸载 Docker"
+    echo "  [2] 卸载 Home Assistant"
+    echo "  [3] 卸载 Plex"
+    echo ""
     
-    # TODO: 显示已安装的服务列表
+    read -r -p "请选择 [1-3]: " opt
     
-    read -r -p "按回车键返回主菜单..."
+    case $opt in
+        1)
+            source "${SCRIPT_DIR}/modules/01_docker.sh"
+            uninstall_docker
+            ;;
+        2)
+            log_info "卸载 Home Assistant..."
+            cd "$HOME/homeassistant" 2>/dev/null && docker compose down || true
+            rm -rf "$HOME/homeassistant"
+            log_success "Home Assistant 已卸载"
+            ;;
+        3)
+            log_info "卸载 Plex..."
+            cd "$HOME/plex" 2>/dev/null && docker compose down || true
+            rm -rf "$HOME/plex"
+            log_success "Plex 已卸载"
+            ;;
+        *) log_warn "无效选项" ;;
+    esac
+    
+    read -p "按回车键返回主菜单..."
 }
 
 # 运行主程序
